@@ -27,7 +27,7 @@ Calling activity functions from a durable function "orchestrator" normally invol
             return 1
         }
 
-    [<FunctionName (name = "Add5")>]
+    [<FunctionName (name = "AddFive")>]
     member this.AddFive(n: int, logger: ILogger) : Task<int> = 
         task {
             logger.LogInformation $"Adding 5 to {n}"
@@ -62,7 +62,7 @@ This library addresses the above problems by adding a series of `CallActivity` e
             return 1
         }
 
-    [<FunctionName (name = "Add5")>]
+    [<FunctionName (name = "AddFive")>]
     member this.AddFive(n: int, logger: ILogger) : Task<int> = 
         task {
             logger.LogInformation $"Adding 5 to {n}"
