@@ -1,4 +1,4 @@
-# FSharp.DurableExtensions
+## FSharp.DurableExtensions
 This library adds the `CallActivity` extension method to the `IDurableOrchestrationContext` for strongly typed activity calls.
 
 ```F#
@@ -16,7 +16,7 @@ Calling activity functions from a durable function "orchestrator" normally invol
     member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
         task {
             let! getOneResult = ctx.CallActivityAsync<int>("GetOne", null) // getOneResult = 1
-            let! addFiveResult = ctx.CallActivityWithRetryAsync<int>("AddFive", getOneResult) // addFiveResult = 6
+            let! addFiveResult = ctx.CallActivityAsync<int>("AddFive", getOneResult) // addFiveResult = 6
             logger.LogInformation $"Result: {addFiveResult}"
         }
 
