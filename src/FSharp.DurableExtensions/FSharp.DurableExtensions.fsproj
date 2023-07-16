@@ -5,6 +5,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Jordan Marr</Authors>
+	  <Version>1.1.0</Version>
     <Description>F# extensions for Azure Durable Functions for strongly typed activity calls.</Description>
     <RepositoryUrl>https://github.com/JordanMarr/FSharp.DurableExtensions</RepositoryUrl>
     <PackageTags>fsharp;F#;Azure Functions;Durable Functions;Azure Durable Functions;</PackageTags>
