@@ -30,7 +30,7 @@ member this.GetOne(logger: ILogger) : Task<int> =
     }
 
 [<FunctionName "add-five">]
-member this.AddFive(n: int, logger: ILogger) : Task<int> = 
+member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
     task {
         logger.LogInformation $"Adding 5 to {n}"
         return n + 5
@@ -65,7 +65,7 @@ member this.GetOne(logger: ILogger) : Task<int> =
     }
 
 [<FunctionName "add-five">]
-member this.AddFive(n: int, logger: ILogger) : Task<int> = 
+member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
     task {
         logger.LogInformation $"Adding 5 to {n}"
         return n + 5
