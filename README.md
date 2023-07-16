@@ -1,4 +1,6 @@
 ## FSharp.DurableExtensions
+[![NuGet version (FSharp.DurableExtensions)](https://img.shields.io/nuget/v/FSharp.DurableExtensions.svg?style=flat-square)](https://www.nuget.org/packages/FSharp.DurableExtensions/)
+
 This library adds the `CallActivity` extension method to the `IDurableOrchestrationContext` for strongly typed activity calls.
 
 ```F#
