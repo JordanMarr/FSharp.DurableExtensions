@@ -2,8 +2,8 @@
 This library adds the `CallActivity` extension method to the `IDurableOrchestrationContext` for strongly typed activity calls.
 
 ```F#
-  let! getOneResult = ctx.CallActivity(this.GetOne)            
-  let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult)
+let! getOneResult = ctx.CallActivity(this.GetOne)            
+let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult)
 ```
 
 ## What problem does this library solve?
