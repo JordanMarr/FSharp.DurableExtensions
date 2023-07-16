@@ -42,9 +42,9 @@ Calling activity functions from a durable function "orchestrator" normally invol
 * Hard to navigate: using string identifiers makes it difficult to navigate to the target function because you cannot take advantage of IDE features like "Go to definition".
 * Bloated code: It is common to create constants to hold function names which bloats the code and still doesn't solve the problems listed above.
 
-## The Solution (FSharp.DurableExtensions)
+## The Solution: FSharp.DurableExtensions
 This library addresses the above problems by adding a series of `CallActivity` extension methods to the `IDurableOrchestrationContext`.
-`CallActivity` makes the assumption that your activity method name will match the function name, which allows you to directly reference the function you are calling, and infers both the input and output types for you. This eliminates runtime errors, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
+`CallActivity` operates on the assumption that your activity method name will match the function name, which allows you to directly reference the function you are calling, and infers both the input and output types for you. This eliminates runtime errors, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
 
 ```F#
     [<FunctionName (name = "Orchestrator")>]
