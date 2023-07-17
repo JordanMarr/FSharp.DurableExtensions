@@ -17,8 +17,8 @@ Calling activity functions from a durable function "orchestrator" normally invol
 ```F#
 type AddFiveRequest = { NumberToAdd: int } 
 type AddFiveResponse = { Sum: int }
-type MultipleByTwoRequest = { NumberToMultiply: int }
-type MultipleByTwoResponse = { Product: int }
+type MultiplyByTwoRequest = { NumberToMultiply: int }
+type MultiplyByTwoResponse = { Product: int }
 
 type Fns() = 
     [<FunctionName "chaining-orchestrator">]
@@ -37,7 +37,7 @@ type Fns() =
         }
 
     [<FunctionName "multiply-by-two">]
-    member this.MultiplyByTwo([<ActivityTrigger>] req: MultipleByTwoRequest, logger: ILogger) : Task<MultipleByTwoResponse> = 
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest, logger: ILogger) : Task<MultiplyByTwoResponse> = 
         task {
             logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
             return { Product = req.NumberToMultiply * 2 }
@@ -80,7 +80,7 @@ type Fns() =
         }
 
     [<FunctionName "multiply-by-two">]
-    member this.MultiplyByTwo([<ActivityTrigger>] req: MultipleByTwoRequest, logger: ILogger) : Task<MultipleByTwoResponse> = 
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest, logger: ILogger) : Task<MultiplyByTwoResponse> = 
         task {
             logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
             return { Product = req.NumberToMultiply * 2 }
