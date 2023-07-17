@@ -9,7 +9,7 @@ let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult)
 ```
 
 ## What problem does this library solve?
-Calling activity functions from a durable function "orchestrator" normally involves calling the function by passing its name as a string, along with manually specifying the expected input and output types using generic arguments. This approach can lead to runtime errors.
+Calling activity functions from a durable function "orchestrator" normally involves calling the function by passing its name as a string, its input as an `obj`, and  then manually specifying the expected output type using a generic argument. This approach can lead to runtime errors.
 
 ### Normal Usage Example: (Magic Strings + Manually Entered Generic Arguments)
 
