@@ -72,18 +72,18 @@ type Fns() =
             logger.LogInformation $"Result: {mltResp.Product}"
         }
     
-    [<FunctionName "get-one">]
-    member this.GetOne(logger: ILogger) : Task<int> = 
-        task {
-            logger.LogInformation "Returning 1"
-            return 1
-        }
-    
     [<FunctionName "add-five">]
-    member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
+    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest, logger: ILogger) : Task<AddFiveResponse> = 
         task {
-            logger.LogInformation $"Adding 5 to {n}"
-            return n + 5
+            logger.LogInformation $"Adding 5 to {req.NumberToAdd}"
+            return { Sum = req.NumberToAdd + 5 }
+        }
+
+    [<FunctionName "multiply-by-two">]
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultipleByTwoRequest, logger: ILogger) : Task<MultipleByTwoResponse> = 
+        task {
+            logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
+            return { Product = req.NumberToMultiply * 2 }
         }
 ```
 
