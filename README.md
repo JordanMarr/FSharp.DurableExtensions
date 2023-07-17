@@ -4,8 +4,9 @@
 This library adds the `CallActivity` extension method to the `IDurableOrchestrationContext` for strongly typed activity calls.
 
 ```F#
-let! getOneResult = ctx.CallActivity(this.GetOne)            
-let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult)
+let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
+let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
+logger.LogInformation $"Result: {mltResp.Product}"
 ```
 
 ## What problem does this library solve?
@@ -14,27 +15,33 @@ Calling activity functions from a durable function "orchestrator" normally invol
 ### Normal Usage Example: (Magic Strings + Manually Entered Generic Arguments)
 
 ```F#
-[<FunctionName "chaining-orchestrator">]
-member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
-    task {
-        let! getOneResult = ctx.CallActivityAsync<int>("get-one", null)
-        let! addFiveResult = ctx.CallActivityAsync<int>("add-five", getOneResult)
-        logger.LogInformation $"Result: {addFiveResult}" // 6
-    }
+type AddFiveRequest = { NumberToAdd: int } 
+type AddFiveResponse = { Sum: int }
+type MultipleByTwoRequest = { NumberToMultiply: int }
+type MultipleByTwoResponse = { Product: int }
 
-[<FunctionName "get-one">]
-member this.GetOne(logger: ILogger) : Task<int> = 
-    task {
-        logger.LogInformation "Returning 1"
-        return 1
-    }
+type Fns() = 
+    [<FunctionName "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+        task {
+            let! addResp = context.CallActivityAsync<AddFiveResponse>("add-five", { NumberToAdd = 2 })
+            let! mltResp = context.CallActivityAsync<MultiplyByTwoResponse>("multiply-by-two", { NumberToMultiply = addResp.Sum })
+            logger.LogInformation $"Result: {mltResp.Product}"            
+        }
+    
+    [<FunctionName "add-five">]
+    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest, logger: ILogger) : Task<AddFiveResponse> = 
+        task {
+            logger.LogInformation $"Adding 5 to {req.NumberToAdd}"
+            return { Sum = req.NumberToAdd + 5 }
+        }
 
-[<FunctionName "add-five">]
-member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
-    task {
-        logger.LogInformation $"Adding 5 to {n}"
-        return n + 5
-    }
+    [<FunctionName "multiply-by-two">]
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultipleByTwoRequest, logger: ILogger) : Task<MultipleByTwoResponse> = 
+        task {
+            logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
+            return { Product = req.NumberToMultiply * 2 }
+        }
 ```
 
 ### Problems with this approach:
@@ -49,40 +56,49 @@ This library addresses all the above problems with the new `CallActivity` extens
 `CallActivity` allows you to directly pass the function you are calling, and infers both the input and output types for you. This completely eliminates runtime errors by utilizing the compiler at design-time, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
 
 ```F#
-[<FunctionName "chaining-orchestrator">]
-member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
-    task {
-        let! getOneResult = ctx.CallActivity(this.GetOne)            
-        let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult)
-        logger.LogInformation $"Result: {addFiveResult}"
-    }
+open FSharp.DurableExtensions
 
-[<FunctionName "get-one">]
-member this.GetOne(logger: ILogger) : Task<int> = 
-    task {
-        logger.LogInformation "Returning 1"
-        return 1
-    }
+type AddFiveRequest = { NumberToAdd: int } 
+type AddFiveResponse = { Sum: int }
+type MultipleByTwoRequest = { NumberToMultiply: int }
+type MultipleByTwoResponse = { Product: int }
 
-[<FunctionName "add-five">]
-member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
-    task {
-        logger.LogInformation $"Adding 5 to {n}"
-        return n + 5
-    }
+type Fns() =
+    [<FunctionName "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+        task {
+            let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
+            let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
+            logger.LogInformation $"Result: {mltResp.Product}"
+        }
+    
+    [<FunctionName "get-one">]
+    member this.GetOne(logger: ILogger) : Task<int> = 
+        task {
+            logger.LogInformation "Returning 1"
+            return 1
+        }
+    
+    [<FunctionName "add-five">]
+    member this.AddFive([<ActivityTrigger>] n: int, logger: ILogger) : Task<int> = 
+        task {
+            logger.LogInformation $"Adding 5 to {n}"
+            return n + 5
+        }
 ```
 
 ## Retry Options
 `RetryOptions` may optionally be passed in:
 
 ```F#
-[<FunctionName "chaining-orchestrator">]
-member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
-    task {
-        let retry = RetryOptions(TimeSpan.FromSeconds 5, 3)
-        let! getOneResult = ctx.CallActivity(this.GetOne, retry)            
-        let! addFiveResult = ctx.CallActivity(this.AddFive, getOneResult, retry)
-        logger.LogInformation $"Result: = {addFiveResult}"
-    }
+type Fns() = 
+    [<FunctionName "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+        task {
+            let retry = RetryOptions(TimeSpan.FromSeconds 5, 3)
+            let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 }, retry)
+            let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum }, retry)
+            logger.LogInformation $"Result: {mltResp.Product}"
+        }
 ```
 
