@@ -60,8 +60,8 @@ open FSharp.DurableExtensions
 
 type AddFiveRequest = { NumberToAdd: int } 
 type AddFiveResponse = { Sum: int }
-type MultipleByTwoRequest = { NumberToMultiply: int }
-type MultipleByTwoResponse = { Product: int }
+type MultiplyByTwoRequest = { NumberToMultiply: int }
+type MultiplyByTwoResponse = { Product: int }
 
 type Fns() =
     [<FunctionName "chaining-orchestrator">]
