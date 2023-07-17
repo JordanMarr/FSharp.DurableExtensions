@@ -17,9 +17,9 @@ Calling activity functions from a durable function "orchestrator" normally invol
 [<FunctionName "chaining-orchestrator">]
 member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
     task {
-        let! getOneResult = ctx.CallActivityAsync<int>("GetOne", null) // getOneResult = 1
-        let! addFiveResult = ctx.CallActivityAsync<int>("AddFive", getOneResult) // addFiveResult = 6
-        logger.LogInformation $"Result: {addFiveResult}"
+        let! getOneResult = ctx.CallActivityAsync<int>("get-one", null)
+        let! addFiveResult = ctx.CallActivityAsync<int>("add-five", getOneResult)
+        logger.LogInformation $"Result: {addFiveResult}" // 6
     }
 
 [<FunctionName "get-one">]
