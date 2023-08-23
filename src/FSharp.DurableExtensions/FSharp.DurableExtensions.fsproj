@@ -5,15 +5,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Jordan Marr</Authors>
-	  <Version>1.1.0</Version>
-    <Description>F# extensions for Azure Durable Functions for strongly typed activity calls.</Description>
+	  <Version>1.2.0</Version>
+    <Description>F# extensions for Azure Durable Functions for strongly typed orchestration and activity calls.</Description>
     <RepositoryUrl>https://github.com/JordanMarr/FSharp.DurableExtensions</RepositoryUrl>
     <PackageTags>fsharp;F#;Azure Functions;Durable Functions;Azure Durable Functions;</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="IDurableOrchestrationContext.fs" />
+    <Compile Include="DurableExtensions.fs" />
   </ItemGroup>
 
   <ItemGroup>
