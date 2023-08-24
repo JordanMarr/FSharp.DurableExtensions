@@ -1,16 +1,30 @@
 ## FSharp.DurableExtensions
 [![NuGet version (FSharp.DurableExtensions)](https://img.shields.io/nuget/v/FSharp.DurableExtensions.svg?style=flat-square)](https://www.nuget.org/packages/FSharp.DurableExtensions/)
 
-This library adds the `CallActivity` extension method to the `IDurableOrchestrationContext` for strongly typed activity calls.
+This library adds the following extension methods:
+* `IDurableOrchestrationClient` - `StartNew` for starting an `OrchestratorTrigger` function.
+* `IDurableOrchestrationContext` - `CallActivity` for calling an `ActivityTrigger` function.
 
 ```F#
-let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
-let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
-logger.LogInformation $"Result: {mltResp.Product}"
-```
+[<FunctionName "start">]
+member this.Start(
+    [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequest, [<DurableClient>] client: IDurableOrchestrationClient) = 
+    task {
+        let! instanceId = client.StartNew(this.Orchestrator)
+        return client.CreateCheckStatusResponse(req, instanceId)
+    }
 
+[<FunctionName "orchestrator">]
+member this.Orchestrator ([<OrchestrationTrigger>] context: IDurableOrchestrationContext, logger: ILogger) = 
+    task {
+        let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
+        let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
+        logger.LogInformation $"Result: {mltResp.Product}"
+    }
+```
+  
 ## What problem does this library solve?
-Calling activity functions from a durable function "orchestrator" normally involves calling the function by passing its name as a string, its input as an `obj`, and  then manually specifying the expected output type using a generic argument. This approach can lead to runtime errors.
+Calling activity functions from a durable "orchestrator" normally involves calling the function by passing its name as a string, its input as an `obj`, and  then manually specifying the expected output type using a generic argument. This approach can lead to runtime errors.
 
 ### Normal Usage Example: (Magic Strings + Manually Entered Generic Arguments)
 
