@@ -2,8 +2,11 @@
 [![NuGet version (FSharp.DurableExtensions)](https://img.shields.io/nuget/v/FSharp.DurableExtensions.svg?style=flat-square)](https://www.nuget.org/packages/FSharp.DurableExtensions/)
 
 This library adds the following extension methods:
-* `IDurableOrchestrationClient` - `StartNew` for starting an `OrchestratorTrigger` function.
-* `IDurableOrchestrationContext` - `CallActivity` for calling an `ActivityTrigger` function.
+* IDurableOrchestrationClient
+  * `StartNew` for starting an OrchestratorTrigger function.
+* IDurableOrchestrationContext
+  * `CallActivity` for calling an ActivityTrigger function.
+  * `CallSubOrchestrator` for calling a sub OrchestratorTrigger function.
 
 ```F#
 [<FunctionName "start">]
