@@ -10,8 +10,7 @@ This library adds the following extension methods:
 
 ```F#
 [<FunctionName "start">]
-member this.Start(
-    [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequest, [<DurableClient>] client: IDurableOrchestrationClient) = 
+member this.Start([<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequest, [<DurableClient>] client: IDurableOrchestrationClient) = 
     task {
         let! instanceId = client.StartNew(this.Orchestrator)
         return client.CreateCheckStatusResponse(req, instanceId)
@@ -69,8 +68,8 @@ type Fns() =
 * Bloated code: It is common to create constants to hold function names which bloats the code and still doesn't solve the problems listed above.
 
 ## The Solution: FSharp.DurableExtensions
-This library addresses all the above problems with the new `CallActivity` extension methods that are added to the `IDurableOrchestrationContext`.
-`CallActivity` allows you to directly pass the function you are calling, and infers both the input and output types for you. This completely eliminates runtime errors by utilizing the compiler at design-time, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
+This library addresses all the above problems with the new `CallActivity`, `CallSubOrchestrator` and `StartNew` extension methods.
+`CallActivity` allows you to directly pass the function you are calling, and infers both the input and output types for you. This completely eliminates runtime errors by utilizing the compiler to catch mismatched inputs/outputs at design-time as build errors, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
 
 ```F#
 open FSharp.DurableExtensions
