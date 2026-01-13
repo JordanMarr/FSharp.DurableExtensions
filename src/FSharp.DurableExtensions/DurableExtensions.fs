@@ -1,89 +1,92 @@
-﻿module FSharp.DurableExtensions
+module FSharp.DurableExtensions
 
 open System.Threading.Tasks
 open Microsoft.FSharp.Quotations
-open Microsoft.Azure.WebJobs.Extensions.DurableTask
+open Microsoft.DurableTask
+open Microsoft.DurableTask.Client
 
 [<AutoOpen>]
-module private Helpers = 
-    /// Tries to get the custom FunctionName attribute name, else uses the method name.
-    let getFunctionName (expr: Expr<'a>) = 
+module private Helpers =
+    /// Tries to get the custom Function attribute name, else uses the method name.
+    let getFunctionName (expr: Expr<'a>) =
         match expr with
-        | DerivedPatterns.Lambdas(_, Patterns.Call(_,mi,_)) ->         
-            mi.CustomAttributes |> Seq.tryFind (fun a -> a.AttributeType.Name = "FunctionNameAttribute")
+        | DerivedPatterns.Lambdas(_, Patterns.Call(_,mi,_)) ->
+            mi.CustomAttributes |> Seq.tryFind (fun a -> a.AttributeType.Name = "FunctionAttribute")
             |> Option.bind (fun att -> Seq.tryHead att.ConstructorArguments)
             |> Option.map (fun nameArg -> string nameArg.Value)
-            |> Option.defaultValue mi.Name        
-        | _ -> 
+            |> Option.defaultValue mi.Name
+        | _ ->
             failwith "Invalid function: unable to get function name."
 
-    /// Calls either CallActivityAsync or CallActivityWithRetryAsync depending on whether a RetryOptions is provided.
-    let callActivity<'Output> (ctx: IDurableOrchestrationContext) (functionName: string) (retry: RetryOptions option) (input: obj) = 
+    /// Converts an optional RetryPolicy to TaskOptions.
+    let toTaskOptions (retry: RetryPolicy option) =
         match retry with
-            | Some retry -> 
-                ctx.CallActivityWithRetryAsync<'Output>(functionName, retry, input)
-            | None -> 
-                ctx.CallActivityAsync<'Output>(functionName, input)
+        | Some policy -> TaskOptions.FromRetryPolicy(policy)
+        | None -> Unchecked.defaultof<TaskOptions>
 
-    /// Calls either CallSubOrchestratorAsync or CallSubOrchestratorWithRetryAsync depending on whether a RetryOptions is provided.
-    let callSubOrchestrator<'Output> (ctx: IDurableOrchestrationContext) (functionName: string) (retry: RetryOptions option) (instanceId: string option) (input: obj) = 
-        match retry, instanceId with
-            | Some retry, Some instanceId -> 
-                ctx.CallSubOrchestratorWithRetryAsync<'Output>(functionName, retry, instanceId, input)
-            | Some retry, None ->
-                ctx.CallSubOrchestratorWithRetryAsync<'Output>(functionName, retry, input)
-            | None, Some instanceId ->
-                ctx.CallSubOrchestratorAsync<'Output>(functionName, instanceId, input)
-            | None, None -> 
-                ctx.CallSubOrchestratorAsync<'Output>(functionName, input)
+    /// Converts an optional RetryPolicy and instanceId to SubOrchestrationOptions.
+    let toSubOrchestrationOptions (retry: RetryPolicy option) (instanceId: string option) =
+        let baseOptions = toTaskOptions retry
+        match instanceId with
+        | Some id when not (isNull baseOptions) -> baseOptions.WithInstanceId(id)
+        | Some id -> TaskOptions().WithInstanceId(id)
+        | None when not (isNull baseOptions) -> SubOrchestrationOptions(baseOptions)
+        | None -> Unchecked.defaultof<SubOrchestrationOptions>
 
 /// Extension methods for calling ActivityTrigger functions with strongly typed inputs and outputs.
-type IDurableOrchestrationContext with 
-    
+type TaskOrchestrationContext with
+
     /// Calls a function with no ActivityTrigger input.
-    member ctx.CallActivity<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, ?retry: RetryOptions) : Task<'Output> = 
+    member ctx.CallActivity<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, ?retry: RetryPolicy) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callActivity<'Output> ctx functionName retry null
+        let options = toTaskOptions retry
+        ctx.CallActivityAsync<'Output>(functionName, null, options)
 
     /// Calls a function with an ActivityTrigger input parameter and no dependency parameters.
-    member ctx.CallActivity<'Input, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input -> Task<'Output>>, input: 'Input, ?retry: RetryOptions) : Task<'Output> = 
+    member ctx.CallActivity<'Input, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input -> Task<'Output>>, input: 'Input, ?retry: RetryPolicy) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callActivity<'Output> ctx functionName retry input        
+        let options = toTaskOptions retry
+        ctx.CallActivityAsync<'Output>(functionName, input, options)
 
     /// Calls a function with an ActivityTrigger input parameter and one dependency parameter.
-    member ctx.CallActivity<'Input, 'D1, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 -> Task<'Output>>, input: 'Input, ?retry: RetryOptions) : Task<'Output> = 
+    member ctx.CallActivity<'Input, 'D1, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 -> Task<'Output>>, input: 'Input, ?retry: RetryPolicy) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callActivity<'Output> ctx functionName retry input
-        
+        let options = toTaskOptions retry
+        ctx.CallActivityAsync<'Output>(functionName, input, options)
+
     /// Calls a function with an ActivityTrigger input parameter and two dependency parameters.
-    member ctx.CallActivity<'Input, 'D1, 'D2, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 * 'D2 -> Task<'Output>>, input: 'Input, ?retry: RetryOptions) : Task<'Output> = 
+    member ctx.CallActivity<'Input, 'D1, 'D2, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 * 'D2 -> Task<'Output>>, input: 'Input, ?retry: RetryPolicy) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callActivity<'Output> ctx functionName retry input
+        let options = toTaskOptions retry
+        ctx.CallActivityAsync<'Output>(functionName, input, options)
 
     /// Calls a function with an ActivityTrigger input parameter and three dependency parameters.
-    member ctx.CallActivity<'Input, 'D1, 'D2, 'D3, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 * 'D2 * 'D3 -> Task<'Output>>, input: 'Input, ?retry: RetryOptions) : Task<'Output> = 
+    member ctx.CallActivity<'Input, 'D1, 'D2, 'D3, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Input * 'D1 * 'D2 * 'D3 -> Task<'Output>>, input: 'Input, ?retry: RetryPolicy) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callActivity<'Output> ctx functionName retry input
+        let options = toTaskOptions retry
+        ctx.CallActivityAsync<'Output>(functionName, input, options)
 
     /// Calls a sub-orchestrator function with no input.
-    member ctx.CallSubOrchestrator<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, ?retry: RetryOptions, ?instanceId: string) : Task<'Output> = 
+    member ctx.CallSubOrchestrator<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, ?retry: RetryPolicy, ?instanceId: string) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callSubOrchestrator<'Output> ctx functionName retry instanceId null
+        let options = toSubOrchestrationOptions retry instanceId
+        ctx.CallSubOrchestratorAsync<'Output>(functionName, null, options)
 
     /// Calls a sub-orchestrator function with an input parameter.
-    member ctx.CallSubOrchestrator<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, input: obj, ?retry: RetryOptions, ?instanceId: string) : Task<'Output> = 
+    member ctx.CallSubOrchestrator<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, input: obj, ?retry: RetryPolicy, ?instanceId: string) : Task<'Output> =
         let functionName = getFunctionName azureFn
-        callSubOrchestrator<'Output> ctx functionName retry instanceId input
+        let options = toSubOrchestrationOptions retry instanceId
+        ctx.CallSubOrchestratorAsync<'Output>(functionName, input, options)
 
-/// Extension methods for calling OrchestrationTrigger functions with strongly typed inputs.
-type IDurableOrchestrationClient with 
+/// Extension methods for starting OrchestrationTrigger functions with strongly typed inputs.
+type DurableTaskClient with
 
-    /// Calls a function with no input.
-    member client.StartNew<'Args> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>) : Task<string> = 
+    /// Starts a function with no input.
+    member client.StartNew<'Args> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>) : Task<string> =
         let functionName = getFunctionName azureFn
-        client.StartNewAsync(functionName, null)
-    
-    /// Calls a function with an input parameter.
-    member client.StartNew<'Args, 'Input when 'Input : not struct> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>, input: 'Input) : Task<string> = 
+        client.ScheduleNewOrchestrationInstanceAsync(functionName, cancellation = System.Threading.CancellationToken.None)
+
+    /// Starts a function with an input parameter.
+    member client.StartNew<'Args, 'Input when 'Input : not struct> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>, input: 'Input) : Task<string> =
         let functionName = getFunctionName azureFn
-        client.StartNewAsync<'Input>(functionName, input)
+        client.ScheduleNewOrchestrationInstanceAsync(functionName, input :> obj, System.Threading.CancellationToken.None)

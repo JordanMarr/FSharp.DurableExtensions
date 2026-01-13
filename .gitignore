@@ -52,3 +52,4 @@ BenchmarkDotNet.Artifacts/
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+tmpclaude*

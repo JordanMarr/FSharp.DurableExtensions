@@ -1,59 +1,63 @@
 ## FSharp.DurableExtensions
 [![NuGet version (FSharp.DurableExtensions)](https://img.shields.io/nuget/v/FSharp.DurableExtensions.svg?style=flat-square)](https://www.nuget.org/packages/FSharp.DurableExtensions/)
 
+F# extensions for Azure Durable Functions that provide strongly typed orchestration and activity calls.
+
+> **v2.0** - This version targets the **isolated worker model** (.NET 8+) using `Microsoft.Azure.Functions.Worker.Extensions.DurableTask`. For the legacy in-process model, use v1.x.
+
 This library adds the following extension methods:
-* `IDurableOrchestrationClient` - `StartNew` for starting an `OrchestratorTrigger` function.
-* `IDurableOrchestrationContext` - `CallActivity` for calling an `ActivityTrigger` function.
+* `DurableTaskClient` - `StartNew` for starting an orchestrator function.
+* `TaskOrchestrationContext` - `CallActivity` for calling an activity function.
+* `TaskOrchestrationContext` - `CallSubOrchestrator` for calling a sub-orchestrator function.
 
 ```F#
-[<FunctionName "start">]
+[<Function "start">]
 member this.Start(
-    [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequest, [<DurableClient>] client: IDurableOrchestrationClient) = 
+    [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequestData,
+    [<DurableClient>] client: DurableTaskClient) =
     task {
         let! instanceId = client.StartNew(this.Orchestrator)
         return client.CreateCheckStatusResponse(req, instanceId)
     }
 
-[<FunctionName "orchestrator">]
-member this.Orchestrator ([<OrchestrationTrigger>] context: IDurableOrchestrationContext, logger: ILogger) = 
+[<Function "orchestrator">]
+member this.Orchestrator ([<OrchestrationTrigger>] context: TaskOrchestrationContext) =
     task {
         let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
         let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
-        logger.LogInformation $"Result: {mltResp.Product}"
+        return mltResp.Product
     }
 ```
-  
+
 ## What problem does this library solve?
-Calling activity functions from a durable "orchestrator" normally involves calling the function by passing its name as a string, its input as an `obj`, and  then manually specifying the expected output type using a generic argument. This approach can lead to runtime errors.
+Calling activity functions from a durable orchestrator normally involves calling the function by passing its name as a string, its input as an `obj`, and then manually specifying the expected output type using a generic argument. This approach can lead to runtime errors.
 
 ### Normal Usage Example: (Magic Strings + Manually Entered Generic Arguments)
 
 ```F#
-type AddFiveRequest = { NumberToAdd: int } 
+type AddFiveRequest = { NumberToAdd: int }
 type AddFiveResponse = { Sum: int }
 type MultiplyByTwoRequest = { NumberToMultiply: int }
 type MultiplyByTwoResponse = { Product: int }
 
-type Fns() = 
-    [<FunctionName "chaining-orchestrator">]
-    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+type Fns() =
+    [<Function "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: TaskOrchestrationContext) =
         task {
-            let! addResp = context.CallActivityAsync<AddFiveResponse>("add-five", { NumberToAdd = 2 })
-            let! mltResp = context.CallActivityAsync<MultiplyByTwoResponse>("multiply-by-two", { NumberToMultiply = addResp.Sum })
-            logger.LogInformation $"Result: {mltResp.Product}"            
+            let! addResp = ctx.CallActivityAsync<AddFiveResponse>("add-five", { NumberToAdd = 2 })
+            let! mltResp = ctx.CallActivityAsync<MultiplyByTwoResponse>("multiply-by-two", { NumberToMultiply = addResp.Sum })
+            return mltResp.Product
         }
-    
-    [<FunctionName "add-five">]
-    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest, logger: ILogger) : Task<AddFiveResponse> = 
+
+    [<Function "add-five">]
+    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest) : Task<AddFiveResponse> =
         task {
-            logger.LogInformation $"Adding 5 to {req.NumberToAdd}"
             return { Sum = req.NumberToAdd + 5 }
         }
 
-    [<FunctionName "multiply-by-two">]
-    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest, logger: ILogger) : Task<MultiplyByTwoResponse> = 
+    [<Function "multiply-by-two">]
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest) : Task<MultiplyByTwoResponse> =
         task {
-            logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
             return { Product = req.NumberToMultiply * 2 }
         }
 ```
@@ -66,53 +70,114 @@ type Fns() =
 * Bloated code: It is common to create constants to hold function names which bloats the code and still doesn't solve the problems listed above.
 
 ## The Solution: FSharp.DurableExtensions
-This library addresses all the above problems with the new `CallActivity` extension methods that are added to the `IDurableOrchestrationContext`.
+This library addresses all the above problems with the new `CallActivity` extension methods that are added to `TaskOrchestrationContext`.
 `CallActivity` allows you to directly pass the function you are calling, and infers both the input and output types for you. This completely eliminates runtime errors by utilizing the compiler at design-time, and also makes it easy to navigate directly to the referenced function via "F12" / "Go to definition".
 
 ```F#
 open FSharp.DurableExtensions
 
-type AddFiveRequest = { NumberToAdd: int } 
+type AddFiveRequest = { NumberToAdd: int }
 type AddFiveResponse = { Sum: int }
 type MultiplyByTwoRequest = { NumberToMultiply: int }
 type MultiplyByTwoResponse = { Product: int }
 
 type Fns() =
-    [<FunctionName "chaining-orchestrator">]
-    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+    [<Function "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: TaskOrchestrationContext) =
         task {
-            let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 })
-            let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
-            logger.LogInformation $"Result: {mltResp.Product}"
+            let! addResp = ctx.CallActivity(this.AddFive, { NumberToAdd = 2 })
+            let! mltResp = ctx.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum })
+            return mltResp.Product
         }
-    
-    [<FunctionName "add-five">]
-    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest, logger: ILogger) : Task<AddFiveResponse> = 
+
+    [<Function "add-five">]
+    member this.AddFive([<ActivityTrigger>] req: AddFiveRequest) : Task<AddFiveResponse> =
         task {
-            logger.LogInformation $"Adding 5 to {req.NumberToAdd}"
             return { Sum = req.NumberToAdd + 5 }
         }
 
-    [<FunctionName "multiply-by-two">]
-    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest, logger: ILogger) : Task<MultiplyByTwoResponse> = 
+    [<Function "multiply-by-two">]
+    member this.MultiplyByTwo([<ActivityTrigger>] req: MultiplyByTwoRequest) : Task<MultiplyByTwoResponse> =
         task {
-            logger.LogInformation $"Multiplying {req.NumberToMultiply} by 2"
             return { Product = req.NumberToMultiply * 2 }
         }
 ```
 
-## Retry Options
-`RetryOptions` may optionally be passed in:
+## Retry Policy
+A `RetryPolicy` may optionally be passed in to configure automatic retries:
 
 ```F#
-type Fns() = 
-    [<FunctionName "chaining-orchestrator">]
-    member this.Orchestrator ([<OrchestrationTrigger>] ctx: IDurableOrchestrationContext, logger: ILogger) = 
+open Microsoft.DurableTask
+
+type Fns() =
+    [<Function "chaining-orchestrator">]
+    member this.Orchestrator ([<OrchestrationTrigger>] ctx: TaskOrchestrationContext) =
         task {
-            let retry = RetryOptions(TimeSpan.FromSeconds 5, 3)
-            let! addResp = context.CallActivity(this.AddFive, { NumberToAdd = 2 }, retry)
-            let! mltResp = context.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum }, retry)
-            logger.LogInformation $"Result: {mltResp.Product}"
+            let retry = RetryPolicy(maxNumberOfAttempts = 3, firstRetryInterval = TimeSpan.FromSeconds(5))
+            let! addResp = ctx.CallActivity(this.AddFive, { NumberToAdd = 2 }, retry)
+            let! mltResp = ctx.CallActivity(this.MultiplyByTwo, { NumberToMultiply = addResp.Sum }, retry)
+            return mltResp.Product
         }
 ```
 
+## Starting Orchestrations
+Use the `StartNew` extension method on `DurableTaskClient` to start an orchestration:
+
+```F#
+type Fns() =
+    [<Function "start">]
+    member this.Start(
+        [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequestData,
+        [<DurableClient>] client: DurableTaskClient) =
+        task {
+            // Start with no input
+            let! instanceId = client.StartNew(this.Orchestrator)
+            return client.CreateCheckStatusResponse(req, instanceId)
+        }
+
+    [<Function "start-with-input">]
+    member this.StartWithInput(
+        [<HttpTrigger(AuthorizationLevel.Function, "post")>] req: HttpRequestData,
+        [<DurableClient>] client: DurableTaskClient) =
+        task {
+            // Start with input
+            let! instanceId = client.StartNew(this.OrchestratorWithInput, { NumberToAdd = 10 })
+            return client.CreateCheckStatusResponse(req, instanceId)
+        }
+```
+
+## Calling Sub-Orchestrators
+Use the `CallSubOrchestrator` extension method to call sub-orchestrations:
+
+```F#
+type Fns() =
+    [<Function "main-orchestrator">]
+    member this.MainOrchestrator ([<OrchestrationTrigger>] ctx: TaskOrchestrationContext) =
+        task {
+            // Call sub-orchestrator
+            let! result = ctx.CallSubOrchestrator(this.SubOrchestrator, { Input = "data" })
+
+            // Call with retry policy
+            let retry = RetryPolicy(maxNumberOfAttempts = 3, firstRetryInterval = TimeSpan.FromSeconds(5))
+            let! result2 = ctx.CallSubOrchestrator(this.SubOrchestrator, { Input = "data" }, retry)
+
+            // Call with specific instance ID
+            let! result3 = ctx.CallSubOrchestrator(this.SubOrchestrator, { Input = "data" }, instanceId = "my-instance-id")
+
+            return result
+        }
+```
+
+## Migration from v1.x (In-Process Model)
+
+If you're migrating from v1.x (in-process model), here are the key changes:
+
+| v1.x (In-Process) | v2.x (Isolated Worker) |
+|-------------------|------------------------|
+| `IDurableOrchestrationContext` | `TaskOrchestrationContext` |
+| `IDurableOrchestrationClient` | `DurableTaskClient` |
+| `[<FunctionName>]` | `[<Function>]` |
+| `RetryOptions` | `RetryPolicy` |
+| `.NET 6` | `.NET 8+` |
+
+The extension method names (`CallActivity`, `CallSubOrchestrator`, `StartNew`) remain the same, making migration straightforward.
