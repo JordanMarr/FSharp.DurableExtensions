@@ -1,11 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Jordan Marr</Authors>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <Description>F# extensions for Azure Durable Functions (isolated worker model) for strongly typed orchestration and activity calls.</Description>
     <RepositoryUrl>https://github.com/JordanMarr/FSharp.DurableExtensions</RepositoryUrl>
     <PackageTags>fsharp;F#;Azure Functions;Durable Functions;Azure Durable Functions;Isolated Worker;</PackageTags>

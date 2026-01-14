@@ -82,11 +82,11 @@ type TaskOrchestrationContext with
 type DurableTaskClient with
 
     /// Starts a function with no input.
-    member client.StartNew<'Args> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>) : Task<string> =
+    member client.StartNew<'Args, 'Output> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>) : Task<string> =
         let functionName = getFunctionName azureFn
         client.ScheduleNewOrchestrationInstanceAsync(functionName, cancellation = System.Threading.CancellationToken.None)
 
     /// Starts a function with an input parameter.
-    member client.StartNew<'Args, 'Input when 'Input : not struct> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<unit>>, input: 'Input) : Task<string> =
+    member client.StartNew<'Args, 'Input, 'Output when 'Input : not struct> ([<ReflectedDefinition>] azureFn: Expr<'Args -> Task<'Output>>, input: 'Input) : Task<string> =
         let functionName = getFunctionName azureFn
         client.ScheduleNewOrchestrationInstanceAsync(functionName, input :> obj, System.Threading.CancellationToken.None)
